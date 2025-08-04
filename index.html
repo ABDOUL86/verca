@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genetica - Arbre Symbolique Génératif</title>
+    
+    <!-- Three.js & D3.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a2e;
+            --text-primary: #ffffff;
+            --accent-1: #00ff88;
+            --accent-2: #ff0080;
+            --accent-3: #0088ff;
+            --glow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --text-primary: #1a1a1a;
+            --accent-1: #0066cc;
+            --accent-2: #cc0066;
+            --accent-3: #00cc66;
+            --glow: 0 0 20px rgba(0, 102, 204, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-1);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1rem 2rem;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--glow);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 2px solid var(--accent-1);
+            color: var(--accent-1);
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-1);
+            color: var(--bg-primary);
+            box-shadow: var(--glow);
+        }
+
+        /* Main Container */
+        .main-container {
+            margin-top: 80px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--accent-1);
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--accent-1);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--accent-1);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--accent-1), var(--accent-2));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* 3D Canvas */
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* NFT Panel */
+        .nft-panel {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .nft-preview {
+            width: 300px;
+            height: 300px;
+            margin: 1rem auto;
+            border-radius: 10px;
+            background: linear-gradient(45deg, var(--accent-1), var(--accent-2), var(--accent-3));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nft-preview::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                transform: translateX(-100%) translateY(-100%) rotate(45deg);
+            }
+            100% {
+                transform: translateX(100%) translateY(100%) rotate(45deg);
+            }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--accent-1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+            }
+            
+            .main-container {
+                padding: 1rem;
+            }
+            
+            #canvas-container {
+                height: 400px;
+            }
+        }
+
+        /* Tree Node Styles */
+        .tree-node {
+            fill: var(--accent-1);
+            stroke: var(--accent-2);
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tree-node:hover {
+            fill: var(--accent-2);
+            filter: drop-shadow(0 0 10px var(--accent-1));
+        }
+
+        .tree-link {
+            stroke: var(--accent-1);
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+
+        /* Stats Dashboard */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-1);
+        }
+
+        .stat-label {
+            color: var(--text-primary);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bg-animation"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">🧬 Genetica</div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon"></i> Mode
+        </button>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h2>Créer votre arbre symbolique</h2>
+            <form id="tree-form">
+                <div class="form-group">
+                    <label>Nom du nœud</label>
+                    <input type="text" id="node-name" placeholder="Ex: Sagesse de grand-mère" required>
+                </div>
+                <div class="form-group">
+                    <label>Valeur ou citation</label>
+                    <textarea id="node-value" placeholder="Ex: La vie est un mystère à vivre..." rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Couleur (HEX)</label>
+                    <input type="color" id="node-color" value="#00ff88">
+                </div>
+                <button type="submit" class="btn">
+                    <i class="fas fa-plus"></i> Ajouter au nœud
+                </button>
+            </form>
+        </div>
+
+        <!-- Stats Dashboard -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-nodes">0</div>
+                <div class="stat-label">Nœuds créés</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-connections">0</div>
+                <div class="stat-label">Connexions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-nfts">0</div>
+                <div class="stat-label">NFTs générés</div>
+            </div>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div id="canvas-container"></div>
+
+        <!-- NFT Panel -->
+        <div class="nft-panel">
+            <h2>Générer votre NFT</h2>
+            <p>Transformez votre arbre symbolique en œuvre d'art numérique unique</p>
+            <div class="nft-preview" id="nft-preview">
+                <i class="fas fa-tree"></i>
+            </div>
+            <button class="btn" onclick="generateNFT()">
+                <i class="fas fa-magic"></i> Générer l'art
+            </button>
+            <button class="btn" onclick="mintNFT()" style="margin-left: 1rem;">
+                <i class="fas fa-coins"></i> Créer le NFT
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">Détails du nœud</h2>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global Variables
+        let scene, camera, renderer, treeData = [], treeGroup;
+        let isDarkMode = true;
+
+        // Initialize
+        function init() {
+            createParticles();
+            initThreeJS();
+            initD3Tree();
+            updateStats();
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            const icon = document.querySelector('.theme-toggle i');
+            icon.className = isDarkMode ? 'fas fa-moon' : 'fas fa-sun';
+        }
+
+        // Animated Background
+        function createParticles() {
+            const container = document.getElementById('bg-animation');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 20 + 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Three.js Setup
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const pointLight = new THREE.PointLight(0x00ff88, 1, 100);
+            pointLight.position.set(10, 10, 10);
+            scene.add(pointLight);
+
+            // Create tree group
+            treeGroup = new THREE.Group();
+            scene.add(treeGroup);
+
+            camera.position.z = 5;
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                treeGroup.rotation.y += 0.005;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+
+        // D3.js Tree
+        function initD3Tree() {
+            // Initialize with sample data
+            treeData = [
+                { id: 'root', name: 'Ma Vie', value: 'Racine de mon arbre symbolique', color: '#00ff88', parent: null }
+            ];
+            renderTree();
+        }
+
+        // Form Handler
+        document.getElementById('tree-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('node-name').value;
+            const value = document.getElementById('node-value').value;
+            const color = document.getElementById('node-color').value;
+            
+            const newNode = {
+                id: Date.now().toString(),
+                name,
+                value,
+                color,
+                parent: 'root'
+            };
+            
+            treeData.push(newNode);
+            renderTree();
+            updateStats();
+            
+            // Reset form
+            e.target.reset();
+        });
+
+        // Render 3D Tree
+        function renderTree() {
+            // Clear existing tree
+            while (treeGroup.children.length > 0) {
+                treeGroup.remove(treeGroup.children[0]);
+            }
+
+            // Create nodes
+            treeData.forEach((node, index) => {
+                const geometry = new THREE.SphereGeometry(0.3, 32, 32);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: new THREE.Color(node.color),
+                    emissive: new THREE.Color(node.color),
+                    emissiveIntensity: 0.2
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                // Position nodes in spiral
+                const angle = (index / treeData.length) * Math.PI * 2;
+                const radius = 1.5;
+                sphere.position.x = Math.cos(angle) * radius;
+                sphere.position.y = Math.sin(angle) * radius;
+                sphere.position.z = Math.sin(angle * 3) * 0.5;
+                
+                sphere.userData = node;
+                treeGroup.add(sphere);
+            });
+
+            // Create connections
+            for (let i = 1; i < treeData.length; i++) {
+                const parent = treeData.find(n => n.id === treeData[i].parent);
+                if (parent) {
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array([
+                        0, 0, 0,
+                        Math.cos(i / treeData.length * Math.PI * 2) * 1.5,
+                        Math.sin(i / treeData.length * Math.PI * 2) * 1.5,
+                        Math.sin(i / treeData.length * Math.PI * 6) * 0.5
+                    ]);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    const material = new THREE.LineBasicMaterial({ color: 0x00ff88, opacity: 0.5, transparent: true });
+                    const line = new THREE.Line(geometry, material);
+                    treeGroup.add(line);
+                }
+            }
+        }
+
+        // Generate NFT Art
+        function generateNFT() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+            gradient.addColorStop(0, '#00ff88');
+            gradient.addColorStop(0.5, '#ff0080');
+            gradient.addColorStop(1, '#0088ff');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Draw tree structure
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            treeData.forEach((node, index) => {
+                const x = 256 + Math.cos(index / treeData.length * Math.PI * 2) * 150;
+                const y = 256 + Math.sin(index / treeData.length * Math.PI * 2) * 150;
+                ctx.fillText(node.name, x, y);
+            });
+            
+            // Update preview
+            const preview = document.getElementById('nft-preview');
+            preview.innerHTML = '';
+            preview.style.background = `url(${canvas.toDataURL()}) center/cover`;
+            
+            // Store image data for minting
+            window.nftImage = canvas.toDataURL();
+        }
+
+        // Mint NFT (Simulated)
+        function mintNFT() {
+            if (!window.nftImage) {
+                alert('Veuillez d\'abord générer l\'art');
+                return;
+            }
+            
+            // Simulate NFT creation
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = 'NFT Créé!';
+            document.getElementById('modal-body').innerHTML = `
+                <p>Votre arbre symbolique a été transformé en NFT unique!</p>
+                <img src="${window.nftImage}" style="width: 100%; border-radius: 10px; margin: 1rem 0;">
+                <p>Hash: 0x${Math.random().toString(16).substr(2, 40)}</p>
+                <button class="btn" onclick="downloadNFT()">Télécharger</button>
+            `;
+            modal.style.display = 'block';
+            
+            // Update stats
+            const currentNFTs = parseInt(document.getElementById('total-nfts').textContent);
+            document.getElementById('total-nfts').textContent = currentNFTs + 1;
+        }
+
+        // Download NFT
+        function downloadNFT() {
+            const link = document.createElement('a');
+            link.download = 'genetica-nft.png';
+            link.href = window.nftImage;
+            link.click();
+        }
+
+        // Update Statistics
+        function updateStats() {
+            document.getElementById('total-nodes').textContent = treeData.length;
+            document.getElementById('total-connections').textContent = Math.max(0, treeData.length - 1);
+        }
+
+        // Modal Controls
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // Click outside modal to close
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
